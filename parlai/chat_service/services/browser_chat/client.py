@@ -186,7 +186,7 @@ if __name__ == "__main__":
     port = opt.get('port', 34596)
     print("Connecting to port: ", port)
     ws = websocket.WebSocketApp(
-        "ws://https://master-blenderbot2-server-scy6500.endpoint.ainize.ai/websocket",
+        "wss://master-blenderbot2-server-scy6500.endpoint.ainize.ai/websocket",
         on_message=on_message,
         on_error=on_error,
         on_close=on_close,
