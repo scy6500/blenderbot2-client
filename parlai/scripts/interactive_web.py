@@ -25,7 +25,7 @@ import parlai.utils.logging as logging
 import json
 import time
 
-HOST_NAME = 'localhost'
+HOST_NAME = '0.0.0.0'
 PORT = 8080
 
 SHARED: Dict[Any, Any] = {}
@@ -77,6 +77,20 @@ WEB_HTML = """
         </div>
 
         <script>
+            var socket = new WebSocket("{}/websocket");
+            socket.onopen = function(e) {{
+                socket.send(JSON.stringify({{text: "begin"}}));
+                socket.send(JSON.stringify({{text: "begin"}}));
+            }};
+            socket.onmessage = function (e) {{
+                const data = JSON.parse(e.data);
+                if (data.text && (!data.quick_replies  || !data.quick_replies.includes('begin'))) {{
+                    var parDiv = document.getElementById("parent");
+                    parDiv.append(createChatRow("Model", data.text));
+                    parDiv.scrollTo(0, parDiv.scrollHeight);
+                }}
+            }};
+
             function createChatRow(agent, text) {{
                 var article = document.createElement("article");
                 article.className = "media"
@@ -124,46 +138,20 @@ WEB_HTML = """
                 event.preventDefault()
                 var text = document.getElementById("userIn").value;
                 document.getElementById('userIn').value = "";
-
-                fetch('/interact', {{
-                    headers: {{
-                        'Content-Type': 'application/json'
-                    }},
-                    method: 'POST',
-                    body: text
-                }}).then(response=>response.json()).then(data=>{{
-                    var parDiv = document.getElementById("parent");
-
-                    parDiv.append(createChatRow("You", text));
-
-                    // Change info for Model response
-                    parDiv.append(createChatRow("Model", data.text));
-                    parDiv.scrollTo(0, parDiv.scrollHeight);
-                }})
+                var parDiv = document.getElementById("parent");
+                parDiv.append(createChatRow("You", text));
+               socket.send(JSON.stringify({{"text": text }}));
             }});
             document.getElementById("interact").addEventListener("reset", function(event){{
                 event.preventDefault()
                 var text = document.getElementById("userIn").value;
                 document.getElementById('userIn').value = "";
-
-                fetch('/reset', {{
-                    headers: {{
-                        'Content-Type': 'application/json'
-                    }},
-                    method: 'POST',
-                }}).then(response=>response.json()).then(data=>{{
-                    var parDiv = document.getElementById("parent");
-
-                    parDiv.innerHTML = '';
-                    parDiv.append(createChatRow("Instructions", "Enter a message, and the model will respond interactively."));
-                    parDiv.scrollTo(0, parDiv.scrollHeight);
-                }})
+                socket.send(JSON.stringify({{text: '[RESET]'}}));
             }});
         </script>
 
     </body>
-</html>
-"""  # noqa: E501
+</html>"""  # noqa: E501
 
 
 class MyHandler(BaseHTTPRequestHandler):
@@ -240,7 +228,8 @@ def setup_interweb_args(shared):
     """
     parser = setup_args()
     parser.description = 'Interactive chat with a model in a web browser'
-    parser.add_argument('--port', type=int, default=PORT, help='Port to listen on.')
+    parser.add_argument('--port', type=int, default=PORT,
+                        help='Port to listen on.')
     parser.add_argument(
         '--host',
         default=HOST_NAME,

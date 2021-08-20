@@ -4,39 +4,17 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import json
-import websocket
+import os
 import threading
 from parlai.core.params import ParlaiParser
 from parlai.scripts.interactive_web import WEB_HTML, STYLE_SHEET, FONT_AWESOME
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
-SHARED = {}
-
-
-def setup_interactive(ws):
-    SHARED['ws'] = ws
-
-
-new_message = None
-message_available = threading.Event()
-
-
 class BrowserHandler(BaseHTTPRequestHandler):
     """
     Handle HTTP requests.
     """
-
-    def _interactive_running(self, reply_text):
-        data = {}
-        data['text'] = reply_text.decode('utf-8')
-        if data['text'] == "[DONE]":
-            print('[ Closing socket... ]')
-            SHARED['ws'].close()
-            SHARED['wb'].shutdown()
-        json_data = json.dumps(data)
-        SHARED['ws'].send(json_data)
 
     def do_HEAD(self):
         """
@@ -45,34 +23,6 @@ class BrowserHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-
-    def do_POST(self):
-        """
-        Handle POST request, especially replying to a chat message.
-        """
-        if self.path == '/interact':
-            content_length = int(self.headers['Content-Length'])
-            body = self.rfile.read(content_length)
-            self._interactive_running(body)
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            model_response = {'id': 'Model', 'episode_done': False}
-            message_available.wait()
-            model_response['text'] = new_message
-            message_available.clear()
-            json_str = json.dumps(model_response)
-            self.wfile.write(bytes(json_str, 'utf-8'))
-        elif self.path == '/reset':
-            self._interactive_running(b"[RESET]")
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(bytes("{}", 'utf-8'))
-            message_available.wait()
-            message_available.clear()
-        else:
-            return self._respond({'status': 500})
 
     def do_GET(self):
         """
@@ -91,7 +41,10 @@ class BrowserHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        content = WEB_HTML.format(STYLE_SHEET, FONT_AWESOME)
+        server_endpoint = 'wss://master-blenderbot2-server-scy6500.endpoint.ainize.ai'
+        #if os.environ['SERVER_ENDPOINT']:
+         #   server_endpoint = os.environ['SERVER_ENDPOINT']:
+        content = WEB_HTML.format(STYLE_SHEET, FONT_AWESOME, server_endpoint)
         return bytes(content, 'UTF-8')
 
     def _respond(self, opts):
@@ -99,98 +52,10 @@ class BrowserHandler(BaseHTTPRequestHandler):
         self.wfile.write(response)
 
 
-def on_message(ws, message):
-    """
-    Prints the incoming message from the server.
-
-    :param ws: a WebSocketApp
-    :param message: json with 'text' field to be printed
-    """
-    incoming_message = json.loads(message)
-    global new_message
-    new_message = incoming_message['text']
-    message_available.set()
-
-
-def on_error(ws, error):
-    """
-    Prints an error, if occurs.
-
-    :param ws: WebSocketApp
-    :param error: An error
-    """
-    print(error)
-
-
-def on_close(ws):
-    """
-    Cleanup before closing connection.
-
-    :param ws: WebSocketApp
-    """
-    # Reset color formatting if necessary
-    print("Connection closed")
-
-
 def _run_browser():
-    host = opt.get('host', '0.0.0.0')
-    serving_port = opt.get('serving_port', 8080)
-
-    httpd = HTTPServer((host, serving_port), BrowserHandler)
-
-    print('Please connect to the link: http://{}:{}/'.format(host, serving_port))
-
-    SHARED['wb'] = httpd
-
+    httpd = HTTPServer(('0.0.0.0', 8080), BrowserHandler)
     httpd.serve_forever()
 
 
-def on_open(ws):
-    """
-    Starts a new thread that loops, taking user input and sending it to the websocket.
-
-    :param ws: websocket.WebSocketApp that sends messages to a browser_manager
-    """
-    threading.Thread(target=_run_browser).start()
-
-
-def setup_args():
-    """
-    Set up args, specifically for the port number.
-
-    :return: A parser that parses the port from commandline arguments.
-    """
-    parser = ParlaiParser(False, False)
-    parser_grp = parser.add_argument_group('Browser Chat')
-    parser_grp.add_argument(
-        '--port', default=35496, type=int, help='Port used by the web socket (run.py)'
-    )
-    parser_grp.add_argument(
-        '--host',
-        default='0.0.0.0',
-        type=str,
-        help='Host from which allow requests, use 0.0.0.0 to allow all IPs',
-    )
-    parser_grp.add_argument(
-        '--serving_port',
-        default=8080,
-        type=int,
-        help='Port used to configure the server',
-    )
-
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    opt = setup_args()
-    port = opt.get('port', 34596)
-    print("Connecting to port: ", port)
-    ws = websocket.WebSocketApp(
-        "wss://master-blenderbot2-server-scy6500.endpoint.ainize.ai/websocket",
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close,
-    )
-    ws.on_open = on_open
-    setup_interactive(ws)
-    ws.run_forever()
+    threading.Thread(target=_run_browser).start()

@@ -16,8 +16,8 @@ opt: # Additional model opts go here
       model_file: zoo:blenderbot2/blenderbot2_400M/model
       interactive_mode: True
       no_cuda: False
-      search_server: https://master-parl-ai-search-engine-scy6500.endpoint.ainize.ai
+      search_server: https://www.google.com/
       override:
-        search_server: https://master-parl-ai-search-engine-scy6500.endpoint.ainize.ai
+        search_server: https://www.google.com/
 additional_args:
   page_id: 1 # configure your own page
