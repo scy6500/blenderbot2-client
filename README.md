@@ -135,13 +135,6 @@ The code is set up into several main directories:
 - [**chat_service**](https://github.com/facebookresearch/ParlAI/tree/master/parlai/chat_service/services/messenger): contains code for interfacing with services such as Facebook Messenger
 - [**zoo**](https://github.com/facebookresearch/ParlAI/tree/master/parlai/zoo): contains code to directly download and use pretrained models from our model zoo
 
-## Support
-If you have any questions, bug reports or feature requests, please don't hesitate to post on our [Github Issues page](https://github.com/facebookresearch/ParlAI/issues).
-You may also be interested in checking out our [FAQ](https://parl.ai/docs/faq.html) and
-our [Tips n Tricks](https://parl.ai/docs/tutorial_tipsntricks.html).
-
-Please remember to follow our [Code of Conduct](https://github.com/facebookresearch/ParlAI/blob/master/CODE_OF_CONDUCT.md).
-
 ## Contributing
 We welcome PRs from the community!
 
